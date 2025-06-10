@@ -12,7 +12,7 @@ jupyter:
     name: python3
 ---
 
-<!-- #region editable=true slideshow={"slide_type": ""} -->
+<!-- #region slideshow={"slide_type": ""} -->
 # Counterfeit detection
 <!-- #endregion -->
 
@@ -35,6 +35,11 @@ plt.rcParams['figure.figsize']=(8,8)
 ```
 
 Please insert you  firstname  and name below
+
+```{python}
+# Aleksandra Stępień
+# Jakub Chmura
+```
 
 ```{python}
 from  sklearn.model_selection import train_test_split
@@ -79,53 +84,99 @@ for i in range(4):
     ax[i].hist(data_train[lbls_train==1].iloc[:,i], bins=32, histtype='bar', color='orange', alpha =0.25)
 ```
 
-<!-- #region editable=true slideshow={"slide_type": ""} -->
+<!-- #region slideshow={"slide_type": ""} -->
 # Problem 1
 <!-- #endregion -->
 
-<!-- #region editable=true slideshow={"slide_type": ""} -->
+<!-- #region slideshow={"slide_type": ""} -->
 Train a neural network classifier to predict counterfeit banknotes. Use the features `a0` and `a3`. Calculate the confussion matrix  and AUC score. 
 <!-- #endregion -->
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
+```{python slideshow={'slide_type': ''}}
 import torch
 import torch.nn as tnn
 ```
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
+```{python slideshow={'slide_type': ''}}
 features= [0, 3]
 nf=len(features)
 ```
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
+```{python slideshow={'slide_type': ''}}
 features_train = torch.from_numpy(data_train.values[:,features]).to(dtype=torch.float32)
 labels_train = torch.from_numpy(data_train.values[:,4:5]).to(dtype=torch.float32)
 ```
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
+```{python slideshow={'slide_type': ''}}
 features_test = torch.from_numpy(data_test.values[:,features]).to(dtype=torch.float32)
 labels_test = torch.from_numpy(data_test.values[:,4:5]).to(dtype=torch.float32)
 ```
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
-model = tnn.Sequential(tnn.Linear(in_features=nf, out_features=1), tnn.Sigmoid())
+```{python slideshow={'slide_type': ''}}
+# model = tnn.Sequential(tnn.Linear(in_features=nf, out_features=1), tnn.Sigmoid())
+
+class SimpleClassifier(tnn.Module):
+    def __init__(self, nf):
+        super().__init__()  # Correct super() call
+        self.net = tnn.Sequential(
+            tnn.Linear(in_features=nf, out_features=nf * 2),
+            tnn.LeakyReLU(),
+            tnn.Linear(in_features=nf * 2, out_features=1),
+        )
+    
+    def forward(self, x):
+        return self.net(x)
+
+model = SimpleClassifier(nf)
 ```
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
-from sklearn.metrics import roc_curve, confusion_matrix, accuracy_score
+```{python}
+# Training the model
 ```
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
+```{python slideshow={'slide_type': ''}}
+from sklearn.metrics import roc_auc_score, confusion_matrix, accuracy_score
+```
+
+```{python}
+loss_fn = torch.nn.BCEWithLogitsLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+
+epochs = 5000
+for epoch in range(epochs):
+    y_pred = model(features_train)
+    loss = loss_fn(y_pred, labels_train)
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    if epoch % 100 == 0:
+        print(f"Epoch {epoch}, Loss: {loss.item():.4f}")
+```
+
+```{python slideshow={'slide_type': ''}}
 y_true = labels_test.numpy()
 with torch.no_grad():
-  y_proba = model(features_test);
+  y_proba = model(features_test)
   y_predicted = 1*(y_proba>0.5)
 ```
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
+```{python slideshow={'slide_type': ''}}
 accuracy_score(y_true, y_pred=y_predicted)
 ```
 
-```{python editable=TRUE, slideshow={'slide_type': ''}}
+```{python}
+y_proba_np = y_proba.numpy()
 
+cm = confusion_matrix(y_true, y_predicted)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+disp.plot()
+plt.title("Confusion Matrix (Neural Network)")
+plt.show()
+```
+
+```{python}
+auc = roc_auc_score(y_true, y_proba_np)
+print(f"AUC score: {auc:.2f}")
 ```
